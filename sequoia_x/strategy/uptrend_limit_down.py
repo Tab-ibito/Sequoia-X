@@ -21,6 +21,10 @@ class UptrendLimitDownStrategy(BaseStrategy):
     """
 
     webhook_key: str = "limit_down"
+    rule_description: str = (
+        "昨日MA20>MA60；今日跌幅>=9.5%；今日成交量>含今日的20日均量×2。"
+        "使用固定跌幅阈值，未等待反包确认，不能单凭形态确认错杀。"
+    )
     _MIN_BARS: int = 60  # 至少需要 60 根 K 线（60日均线）
 
     def run(self) -> list[str]:

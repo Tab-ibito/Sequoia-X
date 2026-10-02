@@ -21,6 +21,10 @@ class HighTightFlagStrategy(BaseStrategy):
     """
 
     webhook_key: str = "flag"
+    rule_description: str = (
+        "40日最高/最低>1.6；10日最高/最低<1.15；10日最低>=40日最高×0.8；"
+        "今日成交量<此前20日均量×0.6。只识别整理形态，未要求突破。"
+    )
     _MIN_BARS: int = 40  # 至少需要 40 根 K 线
 
     def run(self) -> list[str]:

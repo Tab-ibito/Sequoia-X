@@ -1,5 +1,8 @@
 """配置管理模块：通过 pydantic-settings 从环境变量或 .env 文件加载系统配置。"""
 
+from typing import Literal
+
+from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -8,6 +11,32 @@ class Settings(BaseSettings):
     start_date: str = "2024-01-01"
     feishu_webhook_url: str  # 必填字段，缺失时抛出 ValidationError
     strategy_webhooks: dict[str, str] = {}
+
+    # 大模型开关默认关闭：预留接口可以先上线，填写参数后再启用真实评估。
+    # base_url 填到 /v1 层，客户端统一追加 /chat/completions。
+    llm_enabled: bool = False
+    llm_base_url: str = ""
+    llm_api_key: SecretStr = SecretStr("")
+    llm_model: str = ""
+    llm_timeout: float = Field(default=90.0, gt=0, le=600)
+    llm_max_retries: int = Field(default=2, ge=0, le=5)
+    llm_batch_size: int = Field(default=10, ge=1, le=50)
+    llm_max_tokens: int = Field(default=6000, ge=256, le=32000)
+    llm_token_parameter: Literal["max_tokens", "max_completion_tokens"] = "max_tokens"
+    llm_json_mode: bool = True  # 不支持 response_format 的兼容服务可关闭此项
+    llm_max_data_age_days: int = Field(default=4, ge=0, le=30)
+
+    # 外部证据可来自本地 JSON 文件或自建信息聚合 API，两者可以同时配置。
+    # 外部 API 密钥与模型 API 密钥独立，避免把模型凭据发送给信息提供方。
+    external_evidence_path: str = ""
+    external_evidence_url: str = ""
+    external_evidence_api_key: SecretStr = SecretStr("")
+    external_evidence_timeout: float = Field(default=15.0, gt=0, le=120)
+    external_evidence_max_age_days: int = Field(default=30, ge=1, le=365)
+    external_evidence_max_per_symbol: int = Field(default=10, ge=1, le=50)
+
+    # 保存完整报告用于核对模型依据；过长的飞书消息按同一报告编号拆成连续卡片。
+    report_dir: str = "data/reports"
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -19,7 +48,6 @@ class Settings(BaseSettings):
     @classmethod
     def settings_customise_sources(cls, settings_cls, **kwargs):  # type: ignore[override]
         """扩展配置源，支持从环境变量中扫描 STRATEGY_WEBHOOK_ 前缀的键。"""
-        from pydantic_settings import EnvSettingsSource
         import os
 
         sources = super().settings_customise_sources(settings_cls, **kwargs)
@@ -29,12 +57,11 @@ class Settings(BaseSettings):
         webhooks: dict[str, str] = {}
         for key, value in os.environ.items():
             if key.upper().startswith(prefix):
-                strategy_key = key[len(prefix):].lower()
+                strategy_key = key[len(prefix) :].lower()
                 webhooks[strategy_key] = value
 
         # 注入到初始化数据中（通过 init_kwargs source）
         if webhooks:
-            original_init = kwargs.get("init_settings")
             # 直接在 env 层注入，通过 model_post_init 处理
             os.environ.setdefault("_STRATEGY_WEBHOOKS_PARSED", "1")
             # 存储解析结果供 model_validator 使用
@@ -50,7 +77,7 @@ class Settings(BaseSettings):
         webhooks: dict[str, str] = dict(self.strategy_webhooks)
         for key, value in os.environ.items():
             if key.upper().startswith(prefix):
-                strategy_key = key[len(prefix):].lower()
+                strategy_key = key[len(prefix) :].lower()
                 webhooks[strategy_key] = value
 
         # 使用 object.__setattr__ 绕过 pydantic 的不可变保护

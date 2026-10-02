@@ -18,6 +18,9 @@ class BaseStrategy(ABC):
     """
 
     webhook_key: str = "default"
+    # 提供给评估层的规则说明。它描述筛选条件，不代表规则已经验证了收益。
+    # 新增策略时应同步填写，便于模型和报告读者理解本次命中的含义。
+    rule_description: str = "自定义硬规则策略，具体条件见对应策略源码。"
 
     def __init__(self, engine: DataEngine, settings: Settings) -> None:
         """

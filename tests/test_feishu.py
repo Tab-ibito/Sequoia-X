@@ -12,6 +12,12 @@ from sequoia_x.core.config import Settings
 from sequoia_x.notify.feishu import FeishuNotifier
 
 
+@pytest.fixture(autouse=True)
+def mock_stock_names(monkeypatch):
+    """旧卡片测试也隔离 baostock 名称查询，整个通知测试不得访问真实网络。"""
+    monkeypatch.setattr(FeishuNotifier, "_get_stock_names", staticmethod(lambda symbols: {}))
+
+
 def make_settings(webhook_url: str = "https://example.com/default") -> Settings:
     return Settings(
         db_path="data/test.db",

@@ -2,6 +2,7 @@
 
 import sqlite3
 import tempfile
+from contextlib import closing
 from datetime import date
 from pathlib import Path
 
@@ -40,7 +41,7 @@ def test_unique_symbol_date_constraint(symbol: str, trade_date: date) -> None:
             "volume": 1000.0, "turnover": 10500.0,
         }
         df = pd.DataFrame([row])
-        with sqlite3.connect(engine.db_path) as conn:
+        with closing(sqlite3.connect(engine.db_path)) as conn:
             df.to_sql("stock_daily", conn, if_exists="append", index=False, method="multi")
             try:
                 df.to_sql("stock_daily", conn, if_exists="append", index=False, method="multi")
@@ -51,3 +52,31 @@ def test_unique_symbol_date_constraint(symbol: str, trade_date: date) -> None:
                 (symbol, str(trade_date)),
             ).fetchone()[0]
         assert count == 1
+
+
+def test_incremental_sync_preserves_already_updated_stock(tmp_path, monkeypatch):
+    """只拉取落后的股票时，不能删除同日其他股票已有的行情。"""
+    from datetime import timedelta
+    from unittest.mock import MagicMock
+
+    from tests.evaluation_helpers import make_settings
+
+    engine = DataEngine(make_settings(db_path=str(tmp_path / "market.db")))
+    today = date.today()
+    yesterday = today - timedelta(days=1)
+    rows = [
+        {"symbol": "600000", "date": str(today), "open": 10.0, "high": 11.0,
+         "low": 9.0, "close": 10.5, "volume": 1000.0, "turnover": 10500.0},
+        {"symbol": "600001", "date": str(yesterday), "open": 10.0, "high": 11.0,
+         "low": 9.0, "close": 10.5, "volume": 1000.0, "turnover": 10500.0},
+    ]
+    with closing(sqlite3.connect(engine.db_path)) as conn:
+        pd.DataFrame(rows).to_sql("stock_daily", conn, if_exists="append", index=False)
+    pool = MagicMock()
+    pool.__enter__.return_value.map.return_value = [[
+        ["600001", str(today), "10", "11", "9", "10.5", "1000", "10500"],
+    ]]
+    monkeypatch.setattr("multiprocessing.Pool", lambda _: pool)
+    assert engine.sync_today_bulk() == 1
+    assert engine.get_ohlcv("600000")["date"].tolist() == [str(today)]
+    assert engine.get_ohlcv("600001")["date"].tolist() == [str(yesterday), str(today)]

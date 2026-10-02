@@ -1,5 +1,6 @@
 import pandas as pd
 import sqlite3
+from contextlib import closing
 from sequoia_x.strategy.base import BaseStrategy
 from sequoia_x.core.logger import get_logger
 
@@ -10,12 +11,16 @@ class RpsBreakoutStrategy(BaseStrategy):
     """RPS 极强动量突破策略"""
 
     webhook_key: str = "rps"
+    rule_description: str = (
+        "120根K线收益率的横截面排名百分位>=90；"
+        "收盘>=含今日的120根K线最高价×0.9。接近高点，不要求创出新高。"
+    )
     rps_period: int = 120
     rps_threshold: int = 90
 
     def run(self) -> list[str]:
         try:
-            with sqlite3.connect(self.engine.db_path) as conn:
+            with closing(sqlite3.connect(self.engine.db_path)) as conn:
                 df = pd.read_sql("SELECT symbol, date, close, high FROM stock_daily", conn)
         except Exception as exc:
             logger.error(f"读取数据库失败: {exc}")

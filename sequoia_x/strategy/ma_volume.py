@@ -20,6 +20,9 @@ class MaVolumeStrategy(BaseStrategy):
     """
 
     webhook_key: str = "ma_volume"
+    rule_description: str = (
+        "昨日MA5<MA20且今日MA5>MA20；今日成交量>含今日的20日均量×1.5。"
+    )
 
     def run(self) -> list[str]:
         """

@@ -21,6 +21,10 @@ class TurtleTradeStrategy(BaseStrategy):
     """
 
     webhook_key: str = "turtle"
+    rule_description: str = (
+        "收盘突破此前20日最高价；成交额>1亿元；收盘同时高于开盘和昨日收盘。"
+        "候选按估算流通市值降序排列；尚未实现完整海龟仓位和退出规则。"
+    )
     _MIN_BARS: int = 21  # 至少需要 21 根 K 线（20日窗口 + 当日）
 
     def _get_market_caps(self, symbols: list[str]) -> dict[str, float]:

@@ -22,6 +22,10 @@ class LimitUpShakeoutStrategy(BaseStrategy):
     """
 
     webhook_key: str = "shakeout"
+    rule_description: str = (
+        "昨日涨幅>=9.5%；今日收阴、成交量>昨日×2、最低价>=昨日收盘。"
+        "使用固定涨幅阈值，不能单凭形态确认洗盘原因。"
+    )
     _MIN_BARS: int = 3  # 至少需要 3 根 K 线（前日、昨日、今日）
 
     def run(self) -> list[str]:

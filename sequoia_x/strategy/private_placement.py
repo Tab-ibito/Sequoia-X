@@ -21,6 +21,10 @@ class PrivatePlacementStrategy(BaseStrategy):
     """
 
     webhook_key: str = "private_placement"
+    rule_description: str = (
+        "AKShare增发数据中发行方式为定向增发，发行日期>=运行日减7天。"
+        "以发行日期筛选，不代表公告在今日发布，也不代表定增必然利好。"
+    )
     _LOOKBACK_DAYS: int = 7  # 回看天数，覆盖一周内的新公告
 
     def run(self) -> list[str]:
